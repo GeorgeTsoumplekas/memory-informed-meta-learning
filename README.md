@@ -1,8 +1,8 @@
 # Understanding-Enhanced Informed Meta-Learning with External Knowledge-Understanding Memory
 
-This repository contains the code for the report "Understanding-Enhanced Informed Meta-Learning with External Knowledge-Understanding Memory"
+This repository contains the code for the report "Understanding-Enhanced Informed Meta-Learning with External Knowledge-Understanding Memory".
 
-The code included here is based on the code from the paper "Informed Meta-Learning"
+The code included here is based on the code from the paper "Informed Meta-Learning".
 
 <!-- # Informed Meta-Learning with INPs
 
