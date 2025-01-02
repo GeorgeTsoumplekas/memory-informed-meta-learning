@@ -32,11 +32,11 @@ class UnderstandingEncoder(nn.Module):
         else:
             self.knowledge_encoder = None
 
-        if config.understanding_encoder_num_hidden > 0:
+        if config.knowledge_aggregator_encoder_num_hidden > 0:
             self.encoder = MLP(
                 input_size=input_dim,
                 hidden_size=config.hidden_dim,
-                num_hidden=config.latent_encoder_num_hidden,
+                num_hidden=config.knowledge_aggregator_encoder_num_hidden,
                 output_size=2 * config.hidden_dim,
             )
         else:

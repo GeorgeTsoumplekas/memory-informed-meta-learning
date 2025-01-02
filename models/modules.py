@@ -74,77 +74,77 @@ class XYEncoder(nn.Module):
         return R
 
 
-class LatentEncoder(nn.Module):
-    def __init__(self, config):
-        super().__init__()
+# class LatentEncoder(nn.Module):
+#     def __init__(self, config):
+#         super().__init__()
 
-        self.knowledge_dim = config.knowledge_dim
-        self.knowledge_dropout = config.knowledge_dropout
+#         self.knowledge_dim = config.knowledge_dim
+#         self.knowledge_dropout = config.knowledge_dropout
 
-        if config.knowledge_merge == "sum":
-            input_dim = config.hidden_dim
+#         if config.knowledge_merge == "sum":
+#             input_dim = config.hidden_dim
 
-        elif config.knowledge_merge == "concat":
-            input_dim = config.hidden_dim + config.knowledge_dim
+#         elif config.knowledge_merge == "concat":
+#             input_dim = config.hidden_dim + config.knowledge_dim
 
-        elif config.knowledge_merge == "mlp":
-            input_dim = config.hidden_dim
-            self.knowledge_merger = MLP(
-                input_size=config.hidden_dim + config.knowledge_dim,
-                hidden_size=config.hidden_dim,
-                num_hidden=1,
-                output_size=config.hidden_dim,
-            )
+#         elif config.knowledge_merge == "mlp":
+#             input_dim = config.hidden_dim
+#             self.knowledge_merger = MLP(
+#                 input_size=config.hidden_dim + config.knowledge_dim,
+#                 hidden_size=config.hidden_dim,
+#                 num_hidden=1,
+#                 output_size=config.hidden_dim,
+#             )
 
-        else:
-            raise NotImplementedError
+#         else:
+#             raise NotImplementedError
 
-        if config.use_knowledge:
-            self.knowledge_encoder = KnowledgeEncoder(config)
+#         if config.use_knowledge:
+#             self.knowledge_encoder = KnowledgeEncoder(config)
 
-        else:
-            self.knowledge_encoder = None
+#         else:
+#             self.knowledge_encoder = None
 
-        if config.latent_encoder_num_hidden > 0:
-            self.encoder = MLP(
-                input_size=input_dim,
-                hidden_size=config.hidden_dim,
-                num_hidden=config.latent_encoder_num_hidden,
-                output_size=2 * config.hidden_dim,
-            )
-        else:
-            self.encoder = nn.Linear(input_dim, 2 * config.hidden_dim)
-        self.config = config
+#         if config.latent_encoder_num_hidden > 0:
+#             self.encoder = MLP(
+#                 input_size=input_dim,
+#                 hidden_size=config.hidden_dim,
+#                 num_hidden=config.latent_encoder_num_hidden,
+#                 output_size=2 * config.hidden_dim,
+#             )
+#         else:
+#             self.encoder = nn.Linear(input_dim, 2 * config.hidden_dim)
+#         self.config = config
 
-    def forward(self, R, knowledge, n):
-        """
-        Infer the latent distribution given the global representation
-        """
-        drop_knowledge = torch.rand(1) < self.knowledge_dropout
-        if drop_knowledge or knowledge is None:
-            k = torch.zeros((R.shape[0], 1, self.knowledge_dim)).to(R.device)
+#     def forward(self, R, knowledge, n):
+#         """
+#         Infer the latent distribution given the global representation
+#         """
+#         drop_knowledge = torch.rand(1) < self.knowledge_dropout
+#         if drop_knowledge or knowledge is None:
+#             k = torch.zeros((R.shape[0], 1, self.knowledge_dim)).to(R.device)
 
-        else:
-            k = self.knowledge_encoder(knowledge)
+#         else:
+#             k = self.knowledge_encoder(knowledge)
 
-        if self.config.knowledge_merge == "sum":
-            encoder_input = F.relu(R + k)
+#         if self.config.knowledge_merge == "sum":
+#             encoder_input = F.relu(R + k)
 
-        elif self.config.knowledge_merge == "concat":
-            encoder_input = torch.cat([R, k], dim=-1)
+#         elif self.config.knowledge_merge == "concat":
+#             encoder_input = torch.cat([R, k], dim=-1)
 
-        elif self.config.knowledge_merge == "mlp":
-            if knowledge is not None and not drop_knowledge:
-                encoder_input = self.knowledge_merger(torch.cat([R, k], dim=-1))
-            else:
-                encoder_input = F.relu(R)
+#         elif self.config.knowledge_merge == "mlp":
+#             if knowledge is not None and not drop_knowledge:
+#                 encoder_input = self.knowledge_merger(torch.cat([R, k], dim=-1))
+#             else:
+#                 encoder_input = F.relu(R)
 
-        q_z_stats = self.encoder(encoder_input)
+#         q_z_stats = self.encoder(encoder_input)
 
-        return q_z_stats
+#         return q_z_stats
 
-    def get_knowledge_embedding(self, knowledge):
-        return self.knowledge_encoder(knowledge).unsqueeze(1)
+#     def get_knowledge_embedding(self, knowledge):
+#         return self.knowledge_encoder(knowledge).unsqueeze(1)
 
 
 class Decoder(nn.Module):
