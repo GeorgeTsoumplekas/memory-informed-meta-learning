@@ -1,4 +1,10 @@
-# Informed Meta-Learning with INPs
+# Understanding-Enhanced Informed Meta-Learning with External Knowledge-Understanding Memory
+
+This repository contains the code for the report "Understanding-Enhanced Informed Meta-Learning with External Knowledge-Understanding Memory"
+
+The code included here is based on the code from the paper "Informed Meta-Learning"
+
+<!-- # Informed Meta-Learning with INPs
 
 This repository contains the code to reproduce the results of the regression exepriments presented in the paper.
 
@@ -12,4 +18,4 @@ After training the models, results can be analyzed with the following two notebo
 ## Tempereatures
 `jobs/run_temperatures.sh` contais commands that need to be run to reproduce the experiments with the tempereatures datasets 
 
-After training the models, results can be analyzes with `evaluation/evaluate_temperature.ipynb`
+After training the models, results can be analyzes with `evaluation/evaluate_temperature.ipynb` -->
