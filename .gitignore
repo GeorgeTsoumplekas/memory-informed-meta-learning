@@ -1,0 +1,6 @@
+saves/**
+**/__pycache__/**
+wandb/**
+figures/*
+.venv
+.ruff_cache
