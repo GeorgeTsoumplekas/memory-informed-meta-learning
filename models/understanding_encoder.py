@@ -12,27 +12,22 @@ class UnderstandingEncoder(nn.Module):
         self.knowledge_dim = config.knowledge_dim
         self.knowledge_dropout = config.knowledge_dropout
 
-        if config.knowledge_merge == "sum":
+        if config.knowledge_dataset_merge == "sum":
             input_dim = config.hidden_dim
-        elif config.knowledge_merge == "concat":
+        elif config.knowledge_dataset_merge == "concat":
             input_dim = config.hidden_dim + config.knowledge_dim
-        elif config.knowledge_merge == "mlp":
+        elif config.knowledge_dataset_merge == "mlp":
             input_dim = config.hidden_dim
             self.knowledge_merger = MLP(
                 input_size=config.hidden_dim + config.knowledge_dim,
-                hidden_size=config.hidden_dim,
-                num_hidden=1,
-                output_size=config.hidden_dim,
+                hidden_size=config.knowledge_dataset_merger_hidden_dim,
+                num_hidden=config.knowledge_dataset_merger_num_hidden,
+                output_size=config.understanding_representation_dim,
             )
         else:
             raise NotImplementedError
 
-        if config.use_knowledge:
-            self.knowledge_encoder = KnowledgeEncoder(config)
-        else:
-            self.knowledge_encoder = None
-
-        if config.knowledge_aggregator_encoder_num_hidden > 0:
+        if config.understanding_encoder_num_hidden > 0:
             self.encoder = MLP(
                 input_size=input_dim,
                 hidden_size=config.hidden_dim,

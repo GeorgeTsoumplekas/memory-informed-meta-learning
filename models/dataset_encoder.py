@@ -72,40 +72,42 @@ class SetTransformer(nn.Module):
         super(SetTransformer, self).__init__()
         self.enc = nn.Sequential(
             ISAB(
-                config.x_transf_dim + config.output_dim,
-                config.set_transformer_hidden_dim,
-                config.set_transformer_num_heads,
-                config.set_transformer_num_inds,
+                input_size=config.input_dim + config.output_dim,
+                output_size=config.set_transformer_hidden_dim,
+                num_heads=config.set_transformer_num_heads,
+                num_inds=config.set_transformer_num_inds,
                 ln=config.set_transformer_ln,
             ),
             ISAB(
-                config.set_transformer_hidden_dim,
-                config.set_transformer_hidden_dim,
-                config.set_transformer_num_heads,
-                config.set_transformer_num_inds,
+                input_size=config.set_transformer_hidden_dim,
+                output_size=config.set_transformer_hidden_dim,
+                num_heads=config.set_transformer_num_heads,
+                num_inds=config.set_transformer_num_inds,
                 ln=config.set_transformer_ln,
             ),
         )
         self.dec = nn.Sequential(
             PMA(
-                config.set_transformer_hidden_dim,
-                config.set_transformer_num_heads,
-                config.set_transformer_num_outputs,
+                dim=config.set_transformer_hidden_dim,
+                num_heads=config.set_transformer_num_heads,
+                num_seeds=config.set_transformer_num_seeds,
                 ln=config.set_transformer_ln,
             ),
             SAB(
-                config.set_transformer_hidden_dim,
-                config.set_transformer_hidden_dim,
-                config.set_transformer_num_heads,
+                input_size=config.set_transformer_hidden_dim,
+                output_size=config.set_transformer_hidden_dim,
+                num_heads=config.set_transformer_num_heads,
                 ln=config.set_transformer_ln,
             ),
             SAB(
-                config.set_transformer_hidden_dim,
-                config.set_transformer_hidden_dim,
-                config.set_transformer_num_heads,
+                input_size=config.set_transformer_hidden_dim,
+                output_size=config.set_transformer_hidden_dim,
+                num_heads=config.set_transformer_num_heads,
                 ln=config.set_transformer_ln,
             ),
-            nn.Linear(config.set_transformer_hidden_dim, config.hidden_dim),
+            nn.Linear(
+                config.set_transformer_hidden_dim, config.dataset_representation_dim
+            ),
         )
 
     def forward(self, x):
@@ -115,16 +117,18 @@ class SetTransformer(nn.Module):
 class DatasetEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
+
         self.config = config
-        if config.dataset_encoder == "set_transformer":
+
+        if config.dataset_encoder_type == "set_transformer":
             self.encoder = SetTransformer(config)
         else:
             raise NotImplementedError
 
-    def forward(self, x_context, y_context, x_target):
+    def forward(self, x_context, y_context):
         xy = torch.cat([x_context, y_context], dim=-1)
 
-        if self.config.dataset_encoder == "set_transformer":
+        if self.config.dataset_encoder_type == "set_transformer":
             t = self.encoder(xy)
             # TODO: Check if I need to add mean or sum here too
         return t

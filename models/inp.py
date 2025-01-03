@@ -79,8 +79,10 @@ class INP(nn.Module):
         Infer the latent distribution given the global representation
         """
         q_z_stats = self.latent_encoder(R, knowledge, n)
+
         q_z_loc, q_z_scale = q_z_stats.split(self.config.hidden_dim, dim=-1)
         q_z_scale = 0.01 + 0.99 * F.softplus(q_z_scale)
+
         q_zCc = MultivariateNormalDiag(q_z_loc, q_z_scale)
         return q_zCc
 
@@ -115,8 +117,8 @@ class INP(nn.Module):
 if __name__ == "__main__":
     from argparse import Namespace
     from loss import ELBOLoss
+    from dataset.dataset import SetKnowledgeTrendingSinusoids
     from dataset.utils import get_dataloader
-    from dataset.datasets import *
     import numpy as np
     import random
 
@@ -169,20 +171,33 @@ if __name__ == "__main__":
     random.seed(config.seed)
 
     for i, batch in enumerate(train_dataloader):
-        print(i)
+        print(f"Batch {i}")
         context, target, knowledge, _ = batch
+
+        # print(f"Knowledge shape: {knowledge.shape}")
         x_context, y_context = context
         x_target, y_target = target
+
+        # print(f"x_context shape: {x_context.shape}")
+        # print(f"y_context shape: {y_context.shape}")
+        # print(f"x_target shape: {x_target.shape}")
+        # print(f"y_target shape: {y_target.shape}")
 
         if config.use_knowledge:
             outputs = model(x_context, y_context, x_target, y_target, knowledge)
         else:
             outputs = model(x_context, y_context, x_target, y_target, None)
 
-        print(y_target.shape)
-        p_yCc = outputs[0]
-        print(p_yCc.mean.shape)
+        p_yCc, z_samples, q_z_Cc, q_zCct = outputs
+
+        # print(f"p_yCc mean shape: {p_yCc.mean.shape}")
+        # print(f"z_samples shape: {z_samples.shape}")
+        # print(f"q_z_Cc mean shape: {q_z_Cc.mean.shape}")
+        # print(f"q_zCct mean shape: {q_zCct.mean.shape}")
 
         loss = loss_func(outputs, y_target)
 
-        print(loss)
+        # print(f"Loss: {loss}")
+
+        if i > 3:
+            break

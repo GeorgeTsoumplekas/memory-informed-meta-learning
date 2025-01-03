@@ -234,13 +234,12 @@ def meta_train(trial, config, run_name_prefix="run"):
 
 
 if __name__ == "__main__":
-    # resume_training('run_7')
     import random
     import numpy as np
-    from config import Config
+    from inp_config import Config
 
-    # read config from config.toml
-    config = toml.load(f"config.toml")
+    # read config from inp_config.toml
+    config = toml.load(f"inp_config.toml")
     config = Config(**config)
 
     # set seed

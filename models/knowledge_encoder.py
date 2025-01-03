@@ -9,14 +9,13 @@ class RoBERTa(nn.Module):
     def __init__(self, config):
         super(RoBERTa, self).__init__()
 
-        self.dim_model = 768
         self.llm = RobertaModel.from_pretrained("roberta-base")
 
-        if config.freeze_llm:
+        if config.roberta_freeze_llm:
             for name, param in self.llm.named_parameters():
                 param.requires_grad = False
 
-        if config.tune_llm_layer_norms:
+        if config.roberta_tune_llm_layer_norms:
             for name, param in self.llm.named_parameters():
                 if "LayerNorm" in name:
                     param.requires_grad = True
@@ -50,13 +49,15 @@ class RoBERTa(nn.Module):
         )
         hidden_state = llm_output[0]
         output = hidden_state[:, 0]
+
         return output
 
 
 class NoEmbedding(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.dim_model = config.knowledge_input_dim
+
+        self.dim_model = config.knowledge_representation_dim
         self.device = config.device
 
     def forward(self, knowledge):
@@ -70,6 +71,7 @@ class NoEmbedding(nn.Module):
 class SimpleEmbedding(nn.Module):
     def __init__(self, config):
         super().__init__()
+
         self.dim_model = config.num_classes
         self.embedding = nn.Embedding(
             num_embeddings=self.dim_model,
@@ -78,25 +80,27 @@ class SimpleEmbedding(nn.Module):
 
     def forward(self, knowledge):
         knowledge = torch.tensor(knowledge).long().to(self.embedding.weight.device)
+
         return self.embedding(knowledge)
 
 
 class SetEmbedding(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.dim_model = config.knowledge_dim
+
+        self.dim_model = config.knowledge_representation_dim
         self.device = config.device
         self.h1 = MLP(
             input_size=config.knowledge_input_dim,
-            hidden_size=config.knowledge_dim,
-            num_hidden=1,
-            output_size=config.knowledge_dim,
+            hidden_size=config.knowledge_representation_dim,
+            num_hidden=config.set_embedding_num_hidden,
+            output_size=config.knowledge_representation_dim,
         )
         self.h2 = MLP(
-            input_size=config.knowledge_dim,
-            hidden_size=config.knowledge_dim,
-            num_hidden=1,
-            output_size=config.knowledge_dim,
+            input_size=config.knowledge_representation_dim,
+            hidden_size=config.knowledge_representation_dim,
+            num_hidden=config.set_embedding_num_hidden,
+            output_size=config.knowledge_representation_dim,
         )
 
     def forward(self, knowledge):
@@ -104,12 +108,14 @@ class SetEmbedding(nn.Module):
         ks = self.h1(knowledge)
         k = torch.sum(ks, dim=1, keepdim=True)
         k = self.h2(k)
+
         return k
 
 
 class KnowledgeEncoder(nn.Module):
     def __init__(self, config):
         super(KnowledgeEncoder, self).__init__()
+
         if config.text_encoder == "roberta":
             self.text_encoder = RoBERTa(config)
         elif config.text_encoder == "simple":
@@ -119,22 +125,22 @@ class KnowledgeEncoder(nn.Module):
         elif config.text_encoder == "set":
             self.text_encoder = SetEmbedding(config)
 
-        if config.knowledge_extractor_num_hidden > 0:
-            self.knowledge_extractor = MLP(
+        if config.knowledge_encoder_num_hidden > 0:
+            self.knowledge_encoder = MLP(
                 input_size=self.text_encoder.dim_model,
-                hidden_size=config.knowledge_dim,
-                num_hidden=config.knowledge_extractor_num_hidden,
-                output_size=config.knowledge_dim,
+                hidden_size=config.knowledge_representation_dim,
+                num_hidden=config.knowledge_encoder_num_hidden,
+                output_size=config.knowledge_representation_dim,
             )
         else:
-            self.knowledge_extractor = nn.Linear(
-                self.text_encoder.dim_model, config.knowledge_dim
+            self.knowledge_encoder = nn.Linear(
+                self.text_encoder.dim_model, config.knowledge_representation_dim
             )
-        self.config = config
 
     def forward(self, knowledge):
         text_representation = self.text_encoder(knowledge)
-        k = self.knowledge_extractor(text_representation)
+        k = self.knowledge_encoder(text_representation)
         if k.dim() == 2:
             k = k.unsqueeze(1)
+
         return k

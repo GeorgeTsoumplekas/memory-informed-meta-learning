@@ -1,6 +1,5 @@
 import argparse
 import toml
-import os
 
 
 class Config:
@@ -232,8 +231,6 @@ def main():
         "--run-name-suffix", type=str, help="Run name suffix", default="tuned"
     )
 
-    # Add other arguments as needed
-
     args = parser.parse_args()
 
     if args.xy_encoder_hidden_dim is None:
@@ -247,10 +244,10 @@ def main():
     if args.knowledge_dim is None:
         args.knowledge_dim = args.hidden_dim
 
-    print("Setting config.toml")
+    print("Setting inp_config.toml")
     config = Config.from_args(args)
 
-    config.write_config("config.toml")
+    config.write_config("inp_config.toml")
 
     return config
 

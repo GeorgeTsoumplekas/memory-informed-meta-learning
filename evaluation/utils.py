@@ -4,7 +4,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
 from models.inp import INP
 import torch
-from config import Config
+from inp_config import Config
 from models.loss import NLL
 import numpy as np
 import pandas as pd

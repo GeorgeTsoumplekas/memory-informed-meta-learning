@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 from datasets import load_from_disk
 
 # ROOT = '/mnt/data/knk25.data/informed-meta-learning/data/'
-ROOT = "/home/tsoump/informed-meta-learning-31FF/data/"
+ROOT = "/home/tsoump/memory-informed-meta-learning/data/"
 
 
 class SetKnowledgeTrendingSinusoids(Dataset):
