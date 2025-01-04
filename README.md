@@ -1,6 +1,6 @@
-# Understanding-Enhanced Informed Meta-Learning with External Knowledge-Understanding Memory
+# MemINP: Memory Enhanced Neural Processes for Understanding-Based Informed Meta-Learning
 
-This repository contains the code for the report "Understanding-Enhanced Informed Meta-Learning with External Knowledge-Understanding Memory".
+This repository contains the code for the report "MemINP: Memory Enhanced Neural Processes for Understanding-Based Informed Meta-Learning".
 
 The code included here is based on the code from the paper "Informed Meta-Learning".
 
