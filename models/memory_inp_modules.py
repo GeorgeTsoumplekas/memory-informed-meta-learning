@@ -1,3 +1,7 @@
+"""
+This file contains all modules necessary for building the MemINP model.
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,10 +12,24 @@ from transformers import RobertaTokenizer, RobertaModel
 
 
 class MLP(nn.Module):
+    """A simple multi-layer perceptron (MLP) module.
+
+    Args:
+        input_size (int): Size of input features
+        hidden_size (int): Size of hidden layers
+        num_hidden (int): Number of hidden layers
+        output_size (int): Size of output features
+        activation (torch.nn.Module, optional): Activation function to use. Defaults to nn.GELU()
+
+    Returns:
+        Output tensor of the MLP
+    """
+
     def __init__(
         self, input_size, hidden_size, num_hidden, output_size, activation=nn.GELU()
     ):
         super(MLP, self).__init__()
+
         self.layers = nn.ModuleList(
             (
                 [nn.Linear(input_size, hidden_size)]
@@ -25,10 +43,20 @@ class MLP(nn.Module):
         for layer in self.layers[:-1]:
             x = self.activation(layer(x))
         x = self.layers[-1](x)
+
         return x
 
 
 class XYEncoder(nn.Module):
+    """An encoder module to provide an embedding for each pair of input and output points.
+
+    Args:
+        config (Namespace): Configuration object containing model parameters
+
+    Returns:
+        Encoded representation of the input and output pairs
+    """
+
     def __init__(self, config):
         super().__init__()
 
@@ -41,6 +69,7 @@ class XYEncoder(nn.Module):
 
     def forward(self, x, y):
         xy = torch.cat([x, y], dim=-1)
+
         return self.mlp(xy)
 
 
@@ -48,16 +77,34 @@ class XYEncoder(nn.Module):
 
 
 class MAB(nn.Module):
+    """A multi-head attention block (MAB) module, based on the the Set Transformer paper.
+    Original implementation: https://github.com/juho-lee/set_transformer/blob/master/modules.py
+
+    Args:
+        dim_Q (int): Dimension of query
+        dim_K (int): Dimension of key
+        dim_V (int): Dimension of value
+        num_heads (int): Number of attention heads
+        activation (torch.nn.Module, optional): Activation function to use. Defaults to nn.ReLU()
+        ln (bool, optional): Whether to use layer normalization. Defaults to False
+
+    Returns:
+        Output tensor of the MAB
+    """
+
     def __init__(self, dim_Q, dim_K, dim_V, num_heads, activation=nn.ReLU(), ln=False):
         super(MAB, self).__init__()
+
         self.dim_V = torch.tensor(dim_V, requires_grad=False)
         self.num_heads = num_heads
         self.fc_q = nn.Linear(dim_Q, dim_V)
         self.fc_k = nn.Linear(dim_K, dim_V)
         self.fc_v = nn.Linear(dim_K, dim_V)
+
         if ln:
             self.ln0 = nn.LayerNorm(dim_V)
             self.ln1 = nn.LayerNorm(dim_V)
+
         self.fc_o = nn.Linear(dim_V, dim_V)
         self.activation = activation
 
@@ -76,12 +123,28 @@ class MAB(nn.Module):
         O = O if getattr(self, "ln0", None) is None else self.ln0(O)
         O = O + self.activation(self.fc_o(O))
         O = O if getattr(self, "ln1", None) is None else self.ln1(O)
+
         return O
 
 
 class SAB(nn.Module):
+    """
+    Self-attention block (SAB) module, based on the the Set Transformer paper.
+    Original implementation: https://github.com/juho-lee/set_transformer/blob/master/modules.py
+
+    Args:
+        input_size (int): Dimension of input features
+        output_size (int): Dimension of output features
+        num_heads (int): Number of attention heads
+        ln (bool, optional): Whether to use layer normalization. Defaults to False
+
+    Returns:
+        Output tensor of the SAB
+    """
+
     def __init__(self, input_size, output_size, num_heads, ln=False):
         super(SAB, self).__init__()
+
         self.mab = MAB(input_size, input_size, output_size, num_heads, ln=ln)
 
     def forward(self, x):
@@ -89,42 +152,82 @@ class SAB(nn.Module):
 
 
 class ISAB(nn.Module):
+    """
+    Induced Set Attention Block (ISAB) module, based on the the Set Transformer paper.
+    Original implementation: https://github.com/juho-lee/set_transformer/blob/master/modules.py
+
+    Args:
+        input_size (int): Dimension of input features
+        output_size (int): Dimension of output features
+        num_heads (int): Number of attention heads
+        num_inds (int): Number of inducing points
+        ln (bool, optional): Whether to use layer normalization. Defaults to False
+
+    Returns:
+        Output tensor of the ISAB
+    """
+
     def __init__(self, input_size, output_size, num_heads, num_inds, ln=False):
         super(ISAB, self).__init__()
+
         self.I = nn.Parameter(torch.Tensor(1, num_inds, output_size))
         nn.init.xavier_uniform_(self.I)
+
         self.mab0 = MAB(output_size, input_size, output_size, num_heads, ln=ln)
         self.mab1 = MAB(input_size, output_size, output_size, num_heads, ln=ln)
 
     def forward(self, x):
         q = self.I.repeat(x.size(0), 1, 1)
         H = self.mab0(q, x)
+
         return self.mab1(x, H)
 
 
 class PMA(nn.Module):
+    """
+    Pooling by Multi-head Attention (PMA) module, based on the the Set Transformer paper.
+    Original implementation: https://github.com/juho-lee/set_transformer/blob/master/modules.py
+
+    Args:
+        dim (int): Dimension of input features
+        num_heads (int): Number of attention heads
+        num_seeds (int): Number of seeds
+        ln (bool, optional): Whether to use layer normalization. Defaults to False
+
+    Returns:
+        Output tensor of the PMA
+    """
+
     def __init__(self, dim, num_heads, num_seeds, ln=False):
         super(PMA, self).__init__()
+
         self.S = nn.Parameter(torch.Tensor(1, num_seeds, dim))
         nn.init.xavier_uniform_(self.S)
+
         self.mab = MAB(dim, dim, dim, num_heads, ln=ln)
 
     def forward(self, x):
         output = self.mab(self.S.repeat(x.size(0), 1, 1), x)
+
         return output
 
 
 class SetTransformer(nn.Module):
+    """
+    Set Transformer architecture used to encode the context set.
+    Original implementation: https://github.com/juho-lee/set_transformer/blob/master/models.py
+
+    Args:
+        config (Namespace): Configuration object containing model parameters
+
+    Returns:
+        Output tensor of the SetTransformer
+    """
+
     def __init__(self, config):
         super(SetTransformer, self).__init__()
+
         self.enc = nn.Sequential(
-            ISAB(
-                input_size=config.xy_transf_dim,
-                output_size=config.xy_transf_dim,
-                num_heads=config.set_transformer_num_heads,
-                num_inds=config.set_transformer_num_inds,
-                ln=config.set_transformer_ln,
-            ),
             ISAB(
                 input_size=config.xy_transf_dim,
                 output_size=config.xy_transf_dim,
@@ -146,12 +249,6 @@ class SetTransformer(nn.Module):
                 num_heads=config.set_transformer_num_heads,
                 ln=config.set_transformer_ln,
             ),
-            SAB(
-                input_size=config.xy_transf_dim,
-                output_size=config.xy_transf_dim,
-                num_heads=config.set_transformer_num_heads,
-                ln=config.set_transformer_ln,
-            ),
             nn.Linear(config.xy_transf_dim, config.dataset_representation_dim),
         )
 
@@ -160,6 +257,17 @@ class SetTransformer(nn.Module):
 
 
 class DatasetEncoder(nn.Module):
+    """
+    Dataset encoder module used to encode the context set. This works as a wrapper for the actual dataset encoder
+    which can be either a SetTransformer or a self-attention mechanism.
+
+    Args:
+        config (Namespace): Configuration object containing model parameters
+
+    Returns:
+        Output tensor of the DatasetEncoder
+    """
+
     def __init__(self, config):
         super().__init__()
 
@@ -167,12 +275,24 @@ class DatasetEncoder(nn.Module):
 
         if config.dataset_encoder_type == "set_transformer":
             self.encoder = SetTransformer(config)
+        elif config.dataset_encoder_type == "self_attention":
+            self.encoder = nn.MultiheadAttention(
+                embed_dim=config.dataset_encoder_self_attention_hidden_dim,
+                num_heads=config.dataset_encoder_self_attention_num_heads,
+                batch_first=True,
+            )
         else:
             raise NotImplementedError
 
     def forward(self, xy_context_encoded):
         if self.config.dataset_encoder_type == "set_transformer":
             t = self.encoder(xy_context_encoded)
+        elif self.config.dataset_encoder_type == "self_attention":
+            t = self.encoder(
+                xy_context_encoded, xy_context_encoded, xy_context_encoded
+            )[0]
+            t = torch.mean(t, dim=1, keepdim=True)
+
         return t
 
 
@@ -180,6 +300,10 @@ class DatasetEncoder(nn.Module):
 
 
 class RoBERTa(nn.Module):
+    """
+    Used as is from the INP implementation.
+    """
+
     def __init__(self, config):
         super(RoBERTa, self).__init__()
 
@@ -228,6 +352,10 @@ class RoBERTa(nn.Module):
 
 
 class NoEmbedding(nn.Module):
+    """
+    Used as is from the INP implementation.
+    """
+
     def __init__(self, config):
         super().__init__()
 
@@ -243,6 +371,10 @@ class NoEmbedding(nn.Module):
 
 
 class SimpleEmbedding(nn.Module):
+    """
+    Used as is from the INP implementation.
+    """
+
     def __init__(self, config):
         super().__init__()
 
@@ -259,6 +391,10 @@ class SimpleEmbedding(nn.Module):
 
 
 class SetEmbedding(nn.Module):
+    """
+    Used as is from the INP implementation.
+    """
+
     def __init__(self, config):
         super().__init__()
 
@@ -287,6 +423,10 @@ class SetEmbedding(nn.Module):
 
 
 class KnowledgeEncoder(nn.Module):
+    """
+    Used as is from the INP implementation.
+    """
+
     def __init__(self, config):
         super(KnowledgeEncoder, self).__init__()
 
@@ -324,6 +464,17 @@ class KnowledgeEncoder(nn.Module):
 
 
 class UnderstandingEncoder(nn.Module):
+    """
+    This module is responsible for merging the dataset representation and the knowledge representation so as
+    to generate a knowledge representation that is tied to a specific dataset (e.g., set of context points).
+
+    Args:
+        config (Namespace): Configuration object containing model parameters
+
+    Returns:
+        Output tensor of the UnderstandingEncoder
+    """
+
     def __init__(self, config):
         super().__init__()
 
@@ -382,6 +533,18 @@ class UnderstandingEncoder(nn.Module):
 
 
 class DataInteractionEncoder(nn.Module):
+    """
+    The module is responsible for producing an encoding that captures the interaction between the context and target data.
+    This is achieved getting separate embedded representations for the context and target data and then using a cross-attention
+    mechanism to combine them.
+
+    Args:
+        config (Namespace): Configuration object containing model parameters
+
+    Returns:
+        Output tensor of the DataInteractionEncoder
+    """
+
     def __init__(self, config):
         super().__init__()
 
@@ -432,91 +595,178 @@ class Memory(nn.Module):
     def __init__(self, config):
         super().__init__()
 
-        self.memory_knowledge = torch.empty(
-            config.knowledge_representation_dim,
-            config.memory_slots,
+        self.config = config
+
+        # Memory matrices as Parameters
+        self.memory_knowledge = nn.Parameter(
+            torch.empty(config.knowledge_representation_dim, config.memory_slots),
             requires_grad=False,
         )
-        self.memory_understanding = torch.empty(
-            config.understanding_representation_dim,
-            config.memory_slots,
+        self.memory_understanding = nn.Parameter(
+            torch.empty(config.understanding_representation_dim, config.memory_slots),
             requires_grad=False,
         )
 
         nn.init.orthogonal_(self.memory_knowledge)
         nn.init.orthogonal_(self.memory_understanding)
 
-        self.register_buffer(
-            "w_w", torch.zeros((config.memory_slots,), requires_grad=False)
-        )
-        self.register_buffer(
-            "w_u", torch.zeros((config.memory_slots,), requires_grad=False)
-        )
-        self.register_buffer(
-            "w_lu", torch.zeros((config.memory_slots,), requires_grad=False)
+        self.understanding_combiner = nn.Sequential(
+            nn.Linear(
+                2 * config.understanding_representation_dim,
+                config.understanding_representation_dim,
+            ),
+            nn.ReLU(),
+            nn.Linear(
+                config.understanding_representation_dim,
+                config.understanding_representation_dim,
+            ),
         )
 
-        self.beta_param = nn.Parameter(torch.tensor(0.0), requires_grad=True)
+        self.learning_rate = config.memory_learning_rate
+        self.decay_rate = config.memory_decay_rate
 
-        self.config = config
+        # self.register_buffer('memory_usage', torch.zeros(config.memory_slots))
+        # self.last_memory_knowledge = None
 
     def forward(self, k, u):
-        u_refined = torch.zeros(
-            (u.shape[0], 1, self.config.understanding_representation_dim)
-        ).to(self.config.device)
+        # self.last_memory_knowledge = self.memory_knowledge.clone()
 
-        # Perform memory read and write iteratively for each task
+        u_refined = torch.empty_like(u)
+
+        current_memory_k = self.memory_knowledge.clone()
+        current_memory_u = self.memory_understanding.clone()
+
         for i, (k_task, u_task) in enumerate(zip(k, u)):
-            # STEP 1: Calculate w_r based on cosine similarity between k and memory knowledge
-            knowledge_similarity = torch.matmul(k_task, self.memory_knowledge) / (
+            # Read from memory
+            knowledge_similarity = torch.matmul(k_task, current_memory_k) / (
                 torch.norm(k_task, dim=-1, keepdim=True)
-                * torch.norm(self.memory_knowledge, dim=0, keepdim=True)
-            )  # [1, k_dim] @ [k_dim, m_slots] -> [1, m_slots]
-            w_r = torch.softmax(knowledge_similarity, dim=-1).squeeze()  # [m_slots]
+                * torch.norm(current_memory_k, dim=0, keepdim=True)
+            )
+            read_weights = torch.softmax(knowledge_similarity, dim=-1)
 
-            # STEP 2: Erase the least used understanding slot entry
-            min_idx = torch.argmin(self.w_u)
+            # Get memory-based understanding
+            u_memory = torch.matmul(read_weights, current_memory_u.t())
 
-            self.memory_knowledge[:, min_idx] = 0
-            self.memory_understanding[:, min_idx] = 0
+            # Combine original and memory-based understanding
+            u_refined[i] = self.understanding_combiner(
+                torch.cat([u_task, u_memory], dim=-1)
+            ).unsqueeze(0)
 
-            # STEP 3: Calculate the updated w_u
-            self.w_u = self.config.memory_gamma * self.w_u + w_r + self.w_w
-
-            # STEP 4: Calculate the updated w_w
-            beta = torch.sigmoid(self.beta_param)
-            self.w_w = beta * w_r.mean(dim=0).squeeze() + (1 - beta) * self.w_lu
-
-            # STEP 5: Calculate the updated w_lu
-            min_w_u_idx = torch.argmin(self.w_u)
-
-            self.w_lu = torch.zeros_like(self.w_u)
-            self.w_lu[min_w_u_idx] = 1
-
-            # STEP 6: Update understanding entries in memory
-            self.memory_understanding = self.memory_understanding + torch.matmul(
-                u_task.T, self.w_w.unsqueeze(0)
+            # Memory update logic
+            similarity = torch.matmul(k_task, current_memory_k) / (
+                torch.norm(k_task, dim=-1, keepdim=True)
+                * torch.norm(current_memory_k, dim=0, keepdim=True)
+            )
+            write_weights = torch.softmax(
+                similarity / self.config.memory_write_temperature, dim=-1
             )
 
-            # STEP 7: Obtain refined understanding value
-            u_task_refined = (
-                torch.matmul(w_r, self.memory_knowledge.t()).unsqueeze(0).unsqueeze(0)
+            # write_weights = torch.softmax(-torch.norm(
+            #     k_task.unsqueeze(1) - current_memory_k.t(),
+            #     dim=-1
+            # ), dim=-1)
+
+            # # Log pre-update states
+            # pre_update_norm_k = torch.norm(current_memory_k).item()
+
+            memory_update_k = self.learning_rate * torch.matmul(
+                k_task.t(), write_weights.unsqueeze(0)
+            )
+            memory_update_u = self.learning_rate * torch.matmul(
+                u_task.t(), write_weights.unsqueeze(0)
             )
 
-            u_refined[i] = u_task_refined
+            current_memory_k = (
+                1 - self.decay_rate
+            ) * current_memory_k + memory_update_k
+            current_memory_u = (
+                1 - self.decay_rate
+            ) * current_memory_u + memory_update_u
 
-            # STEP 8: Update knowledge entries in memory
-            self.memory_knowledge = self.memory_knowledge + torch.matmul(
-                k_task.T, self.w_w.unsqueeze(0)
-            )
+            current_memory_k = current_memory_k.squeeze(0)
+            current_memory_u = current_memory_u.squeeze(0)
+
+            # Only normalize if really necessary (when norm is too large)
+            if torch.norm(current_memory_k) > 2.0:
+                current_memory_k = F.normalize(current_memory_k, dim=0)
+                current_memory_u = F.normalize(current_memory_u, dim=0)
+
+            # current_memory_k = F.normalize(current_memory_k.squeeze(0), dim=0)
+            # current_memory_u = F.normalize(current_memory_u.squeeze(0), dim=0)
+
+            # # Log intermediate states
+            # post_update_norm_k = torch.norm(current_memory_k).item()
+            # update_magnitude = torch.norm(memory_update_k).item()
+
+            # # Log detailed metrics
+            # wandb.log({
+            #     "memory/pre_update_norm": pre_update_norm_k,
+            #     "memory/post_update_norm": post_update_norm_k,
+            #     "memory/update_magnitude": update_magnitude,
+            #     "memory/write_weights_max": write_weights.max().item(),
+            #     "memory/write_weights_mean": write_weights.mean().item(),
+            #     "memory/volatility": torch.norm(current_memory_k - self.last_memory_knowledge).item(),
+            #     "memory/memory_norm": torch.norm(current_memory_k).item(),
+            #     "memory/max_memory_value": current_memory_k.abs().max().item(),
+            #     "memory/min_memory_value": current_memory_k.abs().min().item(),
+            # })
+
+            # self.compute_metrics(k_task, u_task, write_weights, u_refined[i])
+
+        # Update memory states
+        with torch.no_grad():
+            self.memory_knowledge.copy_(current_memory_k)
+            self.memory_understanding.copy_(current_memory_u)
 
         return u_refined
+
+    # def compute_metrics(self, k_task, u_task, write_weights, u_refined):
+    #     # Memory Volatility (how much memory changed)
+    #     if self.last_memory_knowledge is not None:
+    #         memory_change = torch.norm(
+    #             self.memory_knowledge - self.last_memory_knowledge
+    #         )
+    #         wandb.log({"memory/volatility": memory_change.item()})
+
+    #     # Memory Usage Distribution
+    #     self.memory_usage = 0.99 * self.memory_usage + 0.01 * write_weights
+    #     usage_entropy = -torch.sum(
+    #         self.memory_usage * torch.log(self.memory_usage + 1e-10)
+    #     )
+
+    #     # Learning Effectiveness
+    #     retrieval_similarity = F.cosine_similarity(u_task, u_refined, dim=-1).mean()
+
+    #     # Memory Saturation
+    #     memory_norm = torch.norm(self.memory_knowledge, dim=0).mean()
+
+    #     # Log all metrics
+    #     wandb.log(
+    #         {
+    #             "memory/usage_entropy": usage_entropy.item(),
+    #             "memory/retrieval_similarity": retrieval_similarity.item(),
+    #             "memory/norm": memory_norm.item(),
+    #             "memory/max_write_weight": write_weights.max().item(),
+    #         }
+    #     )
 
 
 ##################### Latent Encoder Module #####################
 
 
 class LatentEncoder(nn.Module):
+    """
+    This module is responsible for encoding the two major latent variables of MemINP:
+    - the interaction between the context and target data
+    - the understanding of the context points based on the provided knowledge
+
+    Args:
+        config (Namespace): Configuration object containing model parameters
+
+    Returns:
+        The encoded mean and variance of the final latent variable's distribution
+    """
+
     def __init__(self, config):
         super().__init__()
 
@@ -574,6 +824,16 @@ class LatentEncoder(nn.Module):
 
 
 class Decoder(nn.Module):
+    """
+    This module is responsible for decoding the final latent variable's distribution into the target distribution.
+
+    Args:
+        config (Namespace): Configuration object containing model parameters
+
+    Returns:
+        The decoded mean and variance of the target distribution
+    """
+
     def __init__(self, config):
         super().__init__()
 
@@ -592,9 +852,8 @@ class Decoder(nn.Module):
     def forward(self, x_target, u_target):
         """
         Decode the target set given the target dependent representation
-
-        u_target [num_samples, bs, num_targets, understanding_representation_dim]
         x_target [bs, num_targets, input_dim]
+        u_target [num_samples, bs, num_targets, understanding_representation_dim]
         """
         x_target = x_target.unsqueeze(0).expand(u_target.shape[0], -1, -1, -1)
         xu_target = torch.cat([x_target, u_target], dim=-1)

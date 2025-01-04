@@ -1,56 +1,73 @@
-# General
+project_name = "INPs_sinusoids"
+seed = 1
+load_it = "best"
+batch_size = 64
+num_epochs = 400
+sort_context = false
+lr = 0.002
+lr_step_size = 401
+lr_decay = 0.1
+train_split = "train"
+val_split = "val"
+n_trials = 1
+beta = 1
 device = "cuda"
 input_dim = 1
 output_dim = 1
-
-# Dataset Encoder
-dataset_encoder_type = "set_transformer"
+dataset = "set-trending-sinusoids"
+knowledge_type = "abc2"
+min_num_context = 0
+max_num_context = 10
+num_targets = 100
+noise = 0.2
+x_sampler = "uniform"
+dataset_encoder_type = "self_attention"
 dataset_representation_dim = 128
 set_transformer_num_heads = 4
-set_transformer_num_inds = 16
+set_transformer_num_inds = 8
 set_transformer_ln = true
-set_transformer_hidden_dim = 256
-set_transformer_num_seeds = 16
+set_transformer_hidden_dim = 128
+set_transformer_num_seeds = 1
+dataset_encoder_self_attention_num_heads = 4
+dataset_encoder_self_attention_hidden_dim = 128
 x_transf_dim = 128
+xy_transf_dim = 128
 xy_encoder_hidden_dim = 128
 xy_encoder_num_hidden = 2
-
-# Knowledge Encoder
 knowledge_representation_dim = 128
 text_encoder = "set"
 roberta_freeze_llm = true
 roberta_tune_llm_layer_norms = false
-set_embedding_num_hidden = 1
+set_embedding_num_hidden = 2
 knowledge_encoder_num_hidden = 2
-knowledge_dropout = 0.0
-
-# Understanding Encoder
+knowledge_dropout = 0.3
+use_knowledge = true
 understanding_representation_dim = 128
 knowledge_dataset_merge = "sum"
 knowledge_dataset_merger_hidden_dim = 128
 knowledge_dataset_merger_num_hidden = 1
 understanding_encoder_num_hidden = 2
-
-# Data Interaction Encoder
-data_interaction_self_attention_hidden_dim = ...
-data_interaction_self_attention_num_heads = ...
-data_interaction_cross_attention_hidden_dim = ...
-data_interaction_cross_attention_num_heads = ...
-
-# Memory Module
-use_memory = ...
-memory_slots = ...
-memory_gamma = ...
-
-# Latent Encoder Module
-data_interaction_understanding_merge = ...
-data_interaction_understanding_merger_hidden_dim = ...
-data_interaction_understanding_merger_num_hidden = ...
-latent_encoder_hidden_dim = ...
-latent_encoder_num_hidden = ...
-data_interaction_dim = ...
-
-# Decoder Module
-decoder_activation = ...
-decoder_hidden_dim = ...
-decoder_num_hidden = ...
+data_interaction_mlp_num_hidden = 2
+data_interaction_self_attention_hidden_dim = 128
+data_interaction_self_attention_num_heads = 4
+data_interaction_cross_attention_hidden_dim = 128
+data_interaction_cross_attention_num_heads = 4
+data_interaction_dim = 128
+use_memory = true
+memory_slots = 32
+memory_gamma = 0.7
+memory_learning_rate = 1.0
+memory_decay_rate = 0.3
+memory_write_temperature = 0.1
+data_interaction_understanding_merge = "sum"
+data_interaction_understanding_merger_hidden_dim = 128
+data_interaction_understanding_merger_num_hidden = 1
+latent_encoder_hidden_dim = 128
+latent_encoder_num_hidden = 1
+decoder_activation = "gelu"
+decoder_hidden_dim = 128
+decoder_num_hidden = 3
+test_num_z_samples = 32
+train_num_z_samples = 1
+run_name_prefix = "memory_inp_abc2"
+run_name_suffix = "tuned"

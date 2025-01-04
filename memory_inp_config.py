@@ -1,3 +1,7 @@
+"""
+This file is similar to inp_config.py but adapted to accomodate for the specific parameters of the MemoryINP model.
+"""
+
 import argparse
 import toml
 
@@ -55,7 +59,12 @@ def main():
         default=False,
     )
     parser.add_argument("--lr", type=float, help="Learning rate", default=1e-3)
-    parser.add_argument("--decay-lr", type=int, help="Decay learning rate", default=10)
+    parser.add_argument(
+        "--lr-step-size", type=int, help="Learning rate step size", default=100
+    )
+    parser.add_argument(
+        "--lr-decay", type=float, help="Learning rate decay", default=0.1
+    )
     parser.add_argument("--train-split", type=str, help="Train split", default="train")
     parser.add_argument("--val-split", type=str, help="Validation split", default="val")
     parser.add_argument(
@@ -129,7 +138,22 @@ def main():
         default=1,
     )
     parser.add_argument(
+        "--dataset-encoder-self-attention-num-heads",
+        type=int,
+        help="Number of heads in dataset encoder self attention",
+        default=4,
+    )
+    parser.add_argument(
+        "--dataset-encoder-self-attention-hidden-dim",
+        type=int,
+        help="Hidden dimension in dataset encoder self attention",
+        default=128,
+    )
+    parser.add_argument(
         "--x-transf-dim", type=int, help="X transformation dimension", default=128
+    )
+    parser.add_argument(
+        "--xy-transf-dim", type=int, help="XY transformation dimension", default=128
     )
     parser.add_argument(
         "--xy-encoder-hidden-dim",
@@ -187,6 +211,14 @@ def main():
     )
     parser.add_argument(
         "--knowledge-dropout", type=float, help="Knowledge dropout", default=0.0
+    )
+    parser.add_argument(
+        "--use-knowledge",
+        type=str2bool,
+        const=True,
+        nargs="?",
+        help="Use knowledge",
+        default=True,
     )
     # understanding encoder
     parser.add_argument(
@@ -271,6 +303,21 @@ def main():
     )
     parser.add_argument(
         "--memory-gamma", type=float, help="Gamma in memory", default=0.7
+    )
+    parser.add_argument(
+        "--memory-learning-rate",
+        type=float,
+        help="Learning rate in memory",
+        default=0.3,
+    )
+    parser.add_argument(
+        "--memory-decay-rate", type=float, help="Decay rate in memory", default=0.05
+    )
+    parser.add_argument(
+        "--memory-write-temperature",
+        type=float,
+        help="Temperature in memory write",
+        default=0.1,
     )
     # latent encoder module
     parser.add_argument(

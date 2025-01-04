@@ -1,12 +1,18 @@
+"""
+This file contains the implementation of the MemoryINP model. Additionally, it contains a main function
+that simulates two forward passes of the model on the sinusoid tasks to simulate that everything works fine with the model.
+"""
+
 import sys
 import os
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import wandb
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
-from models.new_modules import (
+from models.memory_inp_modules import (
     DatasetEncoder,
     KnowledgeEncoder,
     UnderstandingEncoder,
@@ -38,10 +44,14 @@ class MemoryINP(nn.Module):
         self.test_num_z_samples = config.test_num_z_samples
 
     def forward(self, x_context, y_context, x_target, y_target, knowledge=None):
+        # Get dataset representation if context points are available
         xy_context_encoded = self.xy_encoder(x_context, y_context)
-
-        # Get dataset representation
-        t = self.dataset_encoder(xy_context_encoded)
+        if x_context.shape[1] == 0:
+            t = torch.zeros(
+                (xy_context_encoded.shape[0], 1, self.config.dataset_representation_dim)
+            ).to(self.config.device)
+        else:
+            t = self.dataset_encoder(xy_context_encoded)
 
         # Get knowledge representation
         drop_knowledge = torch.rand(1) < self.config.knowledge_dropout
@@ -59,6 +69,9 @@ class MemoryINP(nn.Module):
         # Get understanding representation
         u = self.understanding_encoder(t, k, knowledge_available)
 
+        # Create a copy of u for later comparison
+        u_orig = u.clone().detach()
+
         # Get data interaction representation
         r = self.data_interaction_encoder(x_context, y_context, x_target)
 
@@ -67,6 +80,27 @@ class MemoryINP(nn.Module):
             u_refined = self.memory(k, u)
         else:
             u_refined = u
+
+        # Compare u and u_refined
+        if knowledge_available and self.config.use_memory:
+            # Calculate cosine similarity between u and u_refined
+            u_orig_norm = torch.norm(u_orig, dim=-1, keepdim=True)
+            u_refined_norm = torch.norm(u_refined, dim=-1, keepdim=True)
+            cosine_sim = torch.sum(u_orig * u_refined, dim=-1, keepdim=True) / (
+                u_orig_norm * u_refined_norm + 1e-8
+            )
+
+            # Calculate L2 distance
+            l2_dist = torch.norm(u_orig - u_refined, dim=-1, keepdim=True)
+
+            # Log metrics if in training mode
+            if self.training:
+                wandb.log(
+                    {
+                        "understanding/cosine_similarity": cosine_sim.mean().item(),
+                        "understanding/l2_distance": l2_dist.mean().item(),
+                    }
+                )
 
         # Get latent representation
         q_z_stats = self.latent_encoder(r, u_refined)
@@ -188,6 +222,7 @@ if __name__ == "__main__":
         decoder_num_hidden=2,
         test_num_z_samples=32,
         train_num_z_samples=1,
+        # add any other parameters that might be needed
     )
     config.device = "cpu"
 

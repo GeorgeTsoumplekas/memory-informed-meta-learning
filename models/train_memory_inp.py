@@ -1,3 +1,7 @@
+"""
+This file is similar to train_inp.py but for the MemoryINP model.
+"""
+
 import torch
 import wandb
 import numpy as np
@@ -14,6 +18,8 @@ from models.loss import ELBOLoss
 EVAL_ITER = 500
 SAVE_ITER = 500
 MAX_EVAL_IT = 50
+
+torch.autograd.set_detect_anomaly(True)
 
 
 class Trainer:
@@ -118,7 +124,6 @@ class Trainer:
         it = 0
         min_eval_loss = np.inf
         for epoch in range(self.num_epochs + 1):
-            # self.scheduler.step()
             for batch in self.train_dataloader:
                 self.model.train()
                 self.optimizer.zero_grad()
@@ -126,7 +131,7 @@ class Trainer:
                 loss = results["loss"]
                 kl = results["kl"]
                 negative_ll = results["negative_ll"]
-                loss.backward()
+                loss.backward(retain_graph=True)
                 self.optimizer.step()
                 wandb.log({"train_loss": loss})
                 wandb.log({"train_negative_ll": negative_ll})

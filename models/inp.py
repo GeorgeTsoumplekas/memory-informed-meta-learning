@@ -7,7 +7,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
-from models.modules import XYEncoder, LatentEncoder, Decoder, XEncoder
+from models.inp_modules import XYEncoder, LatentEncoder, Decoder, XEncoder
 from models.utils import MultivariateNormalDiag
 
 
@@ -171,17 +171,10 @@ if __name__ == "__main__":
     random.seed(config.seed)
 
     for i, batch in enumerate(train_dataloader):
-        print(f"Batch {i}")
         context, target, knowledge, _ = batch
 
-        # print(f"Knowledge shape: {knowledge.shape}")
         x_context, y_context = context
         x_target, y_target = target
-
-        # print(f"x_context shape: {x_context.shape}")
-        # print(f"y_context shape: {y_context.shape}")
-        # print(f"x_target shape: {x_target.shape}")
-        # print(f"y_target shape: {y_target.shape}")
 
         if config.use_knowledge:
             outputs = model(x_context, y_context, x_target, y_target, knowledge)
@@ -190,14 +183,7 @@ if __name__ == "__main__":
 
         p_yCc, z_samples, q_z_Cc, q_zCct = outputs
 
-        # print(f"p_yCc mean shape: {p_yCc.mean.shape}")
-        # print(f"z_samples shape: {z_samples.shape}")
-        # print(f"q_z_Cc mean shape: {q_z_Cc.mean.shape}")
-        # print(f"q_zCct mean shape: {q_zCct.mean.shape}")
-
         loss = loss_func(outputs, y_target)
-
-        # print(f"Loss: {loss}")
 
         if i > 3:
             break
