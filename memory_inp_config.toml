@@ -1,5 +1,5 @@
 project_name = "INPs_sinusoids"
-seed = 3
+seed = 1
 load_it = "best"
 batch_size = 64
 num_epochs = 400
@@ -56,7 +56,7 @@ data_interaction_dim = 128
 use_memory = true
 memory_slots = 64
 memory_gamma = 0.7
-memory_learning_rate = 1.0
+memory_learning_rate = 2.0
 memory_decay_rate = 0.3
 memory_write_temperature = 0.1
 data_interaction_understanding_merge = "sum"

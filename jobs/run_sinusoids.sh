@@ -9,8 +9,8 @@
 # python models/train_inp.py
 
 # Train Memory INP with knowledge as one or two parameters a, b, c
-python memory_inp_config.py  --project-name INPs_sinusoids \
-                             --seed 3 \
+python memory_inp_config.py --project-name INPs_sinusoids \
+                             --seed 2 \
                              --batch-size 64 \
                              --lr 1e-3 \
                              --lr-step-size 401 \
@@ -53,7 +53,7 @@ python memory_inp_config.py  --project-name INPs_sinusoids \
                              --data-interaction-cross-attention-hidden-dim 128 \
                              --data-interaction-cross-attention-num-heads 4 \
                              --data-interaction-dim 128 \
-                             --use-memory False \
+                             --use-memory True \
                              --memory-slots 64 \
                              --memory-learning-rate 1 \
                              --memory-decay-rate 0.3 \
