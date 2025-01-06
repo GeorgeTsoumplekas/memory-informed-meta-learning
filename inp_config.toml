@@ -1,5 +1,5 @@
 project_name = "INPs_sinusoids"
-seed = 1
+seed = 2
 load_it = "best"
 batch_size = 64
 num_epochs = 400

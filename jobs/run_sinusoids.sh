@@ -5,14 +5,14 @@
 # python models/train.py
 
 # # Train INP with knowledge as one or two parameters a, b, c
-# python inp_config.py  --project-name INPs_sinusoids --dataset set-trending-sinusoids  --input-dim 1 --output-dim 1 --run-name-prefix inp_abc2 --use-knowledge True --noise 0.2 --min-num-context 0 --max-num-context 10 --num-targets 100 --batch-size 64 --num-epochs 400 --text-encoder set --knowledge-merge sum --knowledge-type abc2 --test-num-z-samples 32 --seed 1
+# python inp_config.py  --project-name INPs_sinusoids --dataset set-trending-sinusoids  --input-dim 1 --output-dim 1 --run-name-prefix inp_abc2 --use-knowledge True --noise 0.2 --min-num-context 0 --max-num-context 10 --num-targets 100 --batch-size 64 --num-epochs 400 --text-encoder set --knowledge-merge sum --knowledge-type abc2 --test-num-z-samples 32 --seed 2
 # python models/train_inp.py
 
 # Train Memory INP with knowledge as one or two parameters a, b, c
 python memory_inp_config.py  --project-name INPs_sinusoids \
-                             --seed 1 \
+                             --seed 3 \
                              --batch-size 64 \
-                             --lr 2e-3 \
+                             --lr 1e-3 \
                              --lr-step-size 401 \
                              --lr-decay 0.1 \
                              --num-epochs 400 \
@@ -53,8 +53,8 @@ python memory_inp_config.py  --project-name INPs_sinusoids \
                              --data-interaction-cross-attention-hidden-dim 128 \
                              --data-interaction-cross-attention-num-heads 4 \
                              --data-interaction-dim 128 \
-                             --use-memory True \
-                             --memory-slots 32 \
+                             --use-memory False \
+                             --memory-slots 64 \
                              --memory-learning-rate 1 \
                              --memory-decay-rate 0.3 \
                              --memory-write-temperature 0.1 \
@@ -70,14 +70,3 @@ python memory_inp_config.py  --project-name INPs_sinusoids \
                              --train-num-z-samples 1 \
                              --run-name-prefix memory_inp_abc2
 python models/train_memory_inp.py
-
-
-# # Distribution shift experiment for INPs on sinusoids
-# # ===================================================
-# # Train NP without knowlege, train & eval: b ~ N(2, 1), test: b ~ N(3, 1)
-# python config.py  --project-name INPs_sinusoids --dataset set-trending-sinusoids-dist-shift --input-dim 1 --output-dim 1 --run-name-prefix np_dist_shift --use-knowledge False --noise 0.2 --min-num-context 0 --max-num-context 10 --num-targets 100 --batch-size 64 --num-epochs 400 --text-encoder set --knowledge-merge sum --seed 1
-# python models/train.py
-
-# # Train INP with knowledge as b, train & eval: b ~ N(2, 1), test: b ~ N(3, 1)
-# python config.py  --project-name INPs_sinusoids --dataset set-trending-sinusoids-dist-shift  --input-dim 1 --output-dim 1 --run-name-prefix inp_b_dist_shift --use-knowledge True --noise 0.2 --min-num-context 0 --max-num-context 10 --num-targets 100 --batch-size 64 --num-epochs 400 --text-encoder set --knowledge-merge sum --knowledge-type b --test-num-z-samples 32 --seed 1
-# python models/train.py

@@ -1,10 +1,13 @@
+import json
 import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
 from models.inp import INP
+from models.memory_inp import MemoryINP
 import torch
-from inp_config import Config
+from inp_config import Config as INPConfig
+from memory_inp_config import Config as MemoryINPConfig
 from models.loss import NLL
 import numpy as np
 import pandas as pd
@@ -20,7 +23,7 @@ EVAL_CONFIGS = {
 }
 
 
-def _load_model(config, save_dir, load_it="best"):
+def _load_inp_model(config, save_dir, load_it="best"):
     print(save_dir)
     model = INP(config)
     model.to(config.device)
@@ -30,11 +33,29 @@ def _load_model(config, save_dir, load_it="best"):
     return model
 
 
-def load_model(save_dir, load_it="best"):
-    config = Config()
+def load_inp_model(save_dir, load_it="best"):
+    config = INPConfig()
     config = config.from_toml(f"{save_dir}/config.toml")
     config.__dict__.update(EVAL_CONFIGS)
-    model = _load_model(config, save_dir, load_it)
+    model = _load_inp_model(config, save_dir, load_it)
+    return model, config
+
+
+def _load_memory_inp_model(config, save_dir, load_it="best"):
+    print(save_dir)
+    model = MemoryINP(config)
+    model.to(config.device)
+    model.eval()
+    state_dict = torch.load(f"{save_dir}/model_{load_it}.pt")
+    model.load_state_dict(state_dict)
+    return model
+
+
+def load_memory_inp_model(save_dir, load_it="best"):
+    config = MemoryINPConfig()
+    config = config.from_toml(f"{save_dir}/config.toml")
+    config.__dict__.update(EVAL_CONFIGS)
+    model = _load_memory_inp_model(config, save_dir, load_it)
     return model, config
 
 
@@ -100,6 +121,7 @@ def plot_predictions(
         y_context[i].flatten().cpu(),
         color="black",
         zorder=10,
+        s=15,
     )
     if plot_true:
         ax.plot(
@@ -109,6 +131,8 @@ def plot_predictions(
             linestyle="--",
             alpha=0.8,
         )
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
 
 
 def uniform_sampler(num_targets, num_context):
@@ -121,6 +145,7 @@ def get_summary_df(
     data_loader,
     eval_type_ls,
     model_names,
+    num_context_ls,
     sampler=uniform_sampler,
 ):
     # Evaluate the models on different knowledge types
@@ -130,7 +155,6 @@ def get_summary_df(
     outputs_dict = {}
     data_knowledge = {}
 
-    num_context_ls = [0, 1, 3, 5, 10, 15]
     for model_name in model_names:
         losses[model_name] = {}
         outputs_dict[model_name] = {}
@@ -369,3 +393,44 @@ def get_auc_summary(losses, model_name, eval_type_ls, num_context_ls):
         )
 
     return auc_summary, improvement
+
+
+def combine_dictionaries(dict1_path, dict2_path, merged_dict_path):
+
+    with open(dict1_path, "r") as f:
+        dict1 = json.load(f)
+
+    with open(dict2_path, "r") as f:
+        dict2 = json.load(f)
+
+    # Convert third level keys to integers in both dictionaries
+    for d in [dict1, dict2]:
+        for key1 in d:
+            for key2 in d[key1]:
+                d[key1][key2] = {int(k): v for k, v in d[key1][key2].items()}
+
+    merged_dict = dict1.copy()
+
+    for key1 in dict2:
+        if key1 not in merged_dict:
+            merged_dict[key1] = dict2[key1]
+        else:
+            for key2 in dict2[key1]:
+                if key2 not in merged_dict[key1]:
+                    merged_dict[key1][key2] = dict2[key1][key2]
+                else:
+                    merged_dict[key1][key2].update(dict2[key1][key2])
+
+    with open(merged_dict_path, "w") as f:
+        json.dump(merged_dict, f)
+
+    # Convert the loaded losses back to tensors
+    for model_name in merged_dict:
+        for eval_type in merged_dict[model_name]:
+            for num_context in merged_dict[model_name][eval_type]:
+                # Convert list to tensor
+                merged_dict[model_name][eval_type][num_context] = [
+                    torch.tensor(loss) for loss in merged_dict[model_name][eval_type][num_context]
+                ]
+
+    return merged_dict

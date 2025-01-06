@@ -4,3 +4,5 @@ wandb/**
 figures/*
 .venv
 .ruff_cache
+evaluation/artifacts/*
+evaluation/ok_large/*

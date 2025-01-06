@@ -592,12 +592,26 @@ class DataInteractionEncoder(nn.Module):
 
 
 class Memory(nn.Module):
+    """
+    The memory is responsible for long-term retention of understanding (and by extension knowledge).
+    This is achieved by refining each understanding using the understanding representations saved in memory.
+    The input understanding is refined based on its associated knowledge's similarity to the knowledge saved in memory.
+    Subsequently, the saved knowledge and understanding in the memory are updated to adapt to more recent inputa
+    while also retaining information from older inputs.
+
+    Args:
+        config (Namespace): Configuration object containing model parameters
+
+    Returns:
+        Output tensor of the refined understanding representation
+    """
+
     def __init__(self, config):
         super().__init__()
 
         self.config = config
 
-        # Memory matrices as Parameters
+        # These are not learnable parameters, they are updated based on specified rules in the forward pass
         self.memory_knowledge = nn.Parameter(
             torch.empty(config.knowledge_representation_dim, config.memory_slots),
             requires_grad=False,
@@ -625,11 +639,7 @@ class Memory(nn.Module):
         self.learning_rate = config.memory_learning_rate
         self.decay_rate = config.memory_decay_rate
 
-        # self.register_buffer('memory_usage', torch.zeros(config.memory_slots))
-        # self.last_memory_knowledge = None
-
     def forward(self, k, u):
-        # self.last_memory_knowledge = self.memory_knowledge.clone()
 
         u_refined = torch.empty_like(u)
 
@@ -661,14 +671,6 @@ class Memory(nn.Module):
                 similarity / self.config.memory_write_temperature, dim=-1
             )
 
-            # write_weights = torch.softmax(-torch.norm(
-            #     k_task.unsqueeze(1) - current_memory_k.t(),
-            #     dim=-1
-            # ), dim=-1)
-
-            # # Log pre-update states
-            # pre_update_norm_k = torch.norm(current_memory_k).item()
-
             memory_update_k = self.learning_rate * torch.matmul(
                 k_task.t(), write_weights.unsqueeze(0)
             )
@@ -686,73 +688,19 @@ class Memory(nn.Module):
             current_memory_k = current_memory_k.squeeze(0)
             current_memory_u = current_memory_u.squeeze(0)
 
-            # Only normalize if really necessary (when norm is too large)
+            # Only normalize when norm is large
             if torch.norm(current_memory_k) > 2.0:
                 current_memory_k = F.normalize(current_memory_k, dim=0)
                 current_memory_u = F.normalize(current_memory_u, dim=0)
 
-            # current_memory_k = F.normalize(current_memory_k.squeeze(0), dim=0)
-            # current_memory_u = F.normalize(current_memory_u.squeeze(0), dim=0)
-
-            # # Log intermediate states
-            # post_update_norm_k = torch.norm(current_memory_k).item()
-            # update_magnitude = torch.norm(memory_update_k).item()
-
-            # # Log detailed metrics
-            # wandb.log({
-            #     "memory/pre_update_norm": pre_update_norm_k,
-            #     "memory/post_update_norm": post_update_norm_k,
-            #     "memory/update_magnitude": update_magnitude,
-            #     "memory/write_weights_max": write_weights.max().item(),
-            #     "memory/write_weights_mean": write_weights.mean().item(),
-            #     "memory/volatility": torch.norm(current_memory_k - self.last_memory_knowledge).item(),
-            #     "memory/memory_norm": torch.norm(current_memory_k).item(),
-            #     "memory/max_memory_value": current_memory_k.abs().max().item(),
-            #     "memory/min_memory_value": current_memory_k.abs().min().item(),
-            # })
-
-            # self.compute_metrics(k_task, u_task, write_weights, u_refined[i])
-
-        # Update memory states
         with torch.no_grad():
             self.memory_knowledge.copy_(current_memory_k)
             self.memory_understanding.copy_(current_memory_u)
 
         return u_refined
 
-    # def compute_metrics(self, k_task, u_task, write_weights, u_refined):
-    #     # Memory Volatility (how much memory changed)
-    #     if self.last_memory_knowledge is not None:
-    #         memory_change = torch.norm(
-    #             self.memory_knowledge - self.last_memory_knowledge
-    #         )
-    #         wandb.log({"memory/volatility": memory_change.item()})
-
-    #     # Memory Usage Distribution
-    #     self.memory_usage = 0.99 * self.memory_usage + 0.01 * write_weights
-    #     usage_entropy = -torch.sum(
-    #         self.memory_usage * torch.log(self.memory_usage + 1e-10)
-    #     )
-
-    #     # Learning Effectiveness
-    #     retrieval_similarity = F.cosine_similarity(u_task, u_refined, dim=-1).mean()
-
-    #     # Memory Saturation
-    #     memory_norm = torch.norm(self.memory_knowledge, dim=0).mean()
-
-    #     # Log all metrics
-    #     wandb.log(
-    #         {
-    #             "memory/usage_entropy": usage_entropy.item(),
-    #             "memory/retrieval_similarity": retrieval_similarity.item(),
-    #             "memory/norm": memory_norm.item(),
-    #             "memory/max_write_weight": write_weights.max().item(),
-    #         }
-    #     )
-
 
 ##################### Latent Encoder Module #####################
-
 
 class LatentEncoder(nn.Module):
     """
